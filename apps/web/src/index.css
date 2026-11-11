@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens (dark-only theme, section 11.2) ───────────────────────── */
+:root {
+  --bg:        #0f1117;   /* near-black background                          */
+  --surface:   #1a1d27;   /* panels, cards                                  */
+  --surface-2: #232736;   /* nested surfaces (tooltips, dropdowns)          */
+  --text:      #e8eaf0;   /* primary text                                   */
+  --muted:     #7c7f8e;   /* secondary / placeholder text                   */
+  --accent:    #5b8af5;   /* primary action color                           */
+  --danger:    #e05252;   /* leave/end, muted indicator                     */
+  --speaker:   #3bba6e;   /* active-speaker ring                            */
+}
+
+/* ── Base resets ─────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Video tile name label ───────────────────────────────────────────────── */
+.tile-name {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+}
+
