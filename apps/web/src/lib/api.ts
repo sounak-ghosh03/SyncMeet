@@ -51,5 +51,51 @@ export async function getTestToken(params: {
   return request('POST', '/api/dev/test-token', params);
 }
 
-// ── Phase 2+ endpoints will be added here ─────────────────────────────────
+// ── Phase 2+ meetings API ──────────────────────────────────────────────────
+
+export type JoinPolicy = 'open' | 'waiting_room' | 'passcode';
+
+export interface CreateMeetingResult {
+  roomId: string;
+  hostKey: string;
+  joinLink: string;
+}
+
+export async function createMeeting(params: {
+  joinPolicy: JoinPolicy;
+  passcode?: string;
+}): Promise<CreateMeetingResult> {
+  return request('POST', '/api/meetings', params);
+}
+
+export interface MeetingInfo {
+  roomId: string;
+  joinPolicy: JoinPolicy;
+}
+
+export async function getMeetingInfo(roomId: string): Promise<MeetingInfo> {
+  return request('GET', `/api/meetings/${roomId}`);
+}
+
+export interface TokenResult {
+  token: string;
+  lkUrl: string;
+}
+
+export async function getMeetingToken(params: {
+  roomId: string;
+  name: string;
+  hostKey?: string;
+  passcode?: string;
+}): Promise<TokenResult> {
+  const { roomId, ...body } = params;
+  return request('POST', `/api/meetings/${roomId}/token`, body);
+}
+
+export async function endMeeting(params: {
+  roomId: string;
+  hostKey: string;
+}): Promise<void> {
+  await request('POST', `/api/meetings/${params.roomId}/end`, { hostKey: params.hostKey });
+}
 

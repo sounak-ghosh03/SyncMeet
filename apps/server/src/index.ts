@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from './config.js';
+import { connectDB } from './services/db.js';
 import devRouter from './routes/dev.js';
+import meetingsRouter from './routes/meetings.js';
 
 const app = express();
 
@@ -26,8 +28,10 @@ app.get('/health', (_req, res) => {
 // ── Routes ──────────────────────────────────────────────────────────────────
 
 // Phase 1: dev-only token endpoint (no DB needed)
-// Will be replaced / supplemented in Phase 2 with /api/meetings
 app.use('/api/dev', devRouter);
+
+// Phase 2+: full meetings API
+app.use('/api/meetings', meetingsRouter);
 
 // ── Global error handler ────────────────────────────────────────────────────
 
@@ -45,9 +49,16 @@ app.use(
 
 // ── Start ───────────────────────────────────────────────────────────────────
 
-app.listen(config.port, () => {
-  console.log(`[server] listening on http://localhost:${config.port}`);
-});
+connectDB()
+  .then(() => {
+    app.listen(config.port, () => {
+      console.log(`[server] listening on http://localhost:${config.port}`);
+    });
+  })
+  .catch((err) => {
+    console.error('[server] failed to connect to MongoDB:', err);
+    process.exit(1);
+  });
 
 export default app;
 

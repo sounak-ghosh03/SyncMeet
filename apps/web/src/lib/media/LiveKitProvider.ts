@@ -3,7 +3,6 @@ import {
   RoomEvent,
   LocalParticipant,
   RemoteParticipant,
-  DataPacket_Kind,
   ConnectionState,
 } from 'livekit-client';
 import type {
@@ -40,7 +39,7 @@ export class LiveKitProvider implements MediaProvider {
 
   // ── Connection ─────────────────────────────────────────────────────────────
 
-  async connect(roomId: string, token: string): Promise<void> {
+  async connect(_roomId: string, token: string): Promise<void> {
     const lkUrl = import.meta.env.VITE_LK_URL as string;
     if (!lkUrl) throw new Error('VITE_LK_URL is not set');
 
@@ -85,9 +84,10 @@ export class LiveKitProvider implements MediaProvider {
   on(event: 'chat', cb: (msg: ChatMessage) => void): void;
   on(event: 'disconnected', cb: () => void): void;
   on(event: 'error', cb: (err: Error) => void): void;
-  on(event: MediaEventType, cb: AnyCallback): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(event: MediaEventType, cb: (arg?: any) => void): void {
     if (!this.listeners.has(event)) this.listeners.set(event, new Set());
-    this.listeners.get(event)!.add(cb);
+    this.listeners.get(event)!.add(cb as AnyCallback);
   }
 
   off(event: MediaEventType, cb: AnyCallback): void {
