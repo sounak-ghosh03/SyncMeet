@@ -1,6 +1,7 @@
 import {
   Room,
   RoomEvent,
+  Track,
   LocalParticipant,
   RemoteParticipant,
   ConnectionState,
@@ -102,7 +103,7 @@ export class LiveKitProvider implements MediaProvider {
   private attachRoomEvents(): void {
     const { room } = this;
 
-    // Participant list changes
+    // Participant list changes — covers all state that affects ParticipantInfo
     const refreshParticipants = () => this.emitParticipants();
     room.on(RoomEvent.ParticipantConnected, refreshParticipants);
     room.on(RoomEvent.ParticipantDisconnected, refreshParticipants);
@@ -112,6 +113,8 @@ export class LiveKitProvider implements MediaProvider {
     room.on(RoomEvent.TrackUnpublished, refreshParticipants);
     room.on(RoomEvent.TrackSubscribed, refreshParticipants);
     room.on(RoomEvent.TrackUnsubscribed, refreshParticipants);
+    room.on(RoomEvent.TrackMuted, refreshParticipants);
+    room.on(RoomEvent.TrackUnmuted, refreshParticipants);
     room.on(RoomEvent.ActiveSpeakersChanged, refreshParticipants);
 
     // Chat data messages
@@ -165,16 +168,19 @@ export class LiveKitProvider implements MediaProvider {
     p: LocalParticipant | RemoteParticipant,
     isLocal: boolean,
   ): ParticipantInfo {
-    const tracks = p.getTrackPublications();
-    const hasVideo = [...tracks.values()].some(
-      (t) => t.kind === 'video' && t.trackName !== 'screen' && !t.isMuted,
-    );
-    const hasAudio = [...tracks.values()].some(
-      (t) => t.kind === 'audio' && !t.isMuted,
-    );
-    const isScreenSharing = [...tracks.values()].some(
-      (t) => t.source === 'screen_share',
-    );
+    const pubs = [...p.getTrackPublications().values()];
+
+    const cameraPub   = pubs.find((t) => t.source === Track.Source.Camera);
+    const micPub      = pubs.find((t) => t.source === Track.Source.Microphone);
+    const screenPub   = pubs.find((t) => t.source === Track.Source.ScreenShare);
+
+    // hasVideo: camera published, not muted, and track is available
+    const hasVideo = !!(cameraPub && !cameraPub.isMuted && cameraPub.track);
+    // hasAudio: mic published and not muted (we don't attach audio elements,
+    //           LiveKit auto-plays remote audio — but we show the mute indicator)
+    const hasAudio = !!(micPub && !micPub.isMuted);
+    // isScreenSharing: screen share track is published
+    const isScreenSharing = !!screenPub;
 
     return {
       identity: p.identity,
