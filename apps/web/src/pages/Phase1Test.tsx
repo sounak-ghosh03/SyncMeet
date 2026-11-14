@@ -37,10 +37,9 @@ export default function Phase1TestPage() {
     setError(null);
 
     try {
-      const { token } = await getTestToken({ roomId: ROOM_ID, name: name.trim() });
+      const { token, lkUrl } = await getTestToken({ roomId: ROOM_ID, name: name.trim() });
 
-      const lkUrl = import.meta.env.VITE_LK_URL as string;
-      if (!lkUrl) throw new Error('VITE_LK_URL env var is not set');
+      if (!lkUrl) throw new Error('Server did not return a LiveKit URL. Check LK_URL in server .env');
 
       const room = new Room({ adaptiveStream: true, dynacast: true });
       roomRef.current = room;

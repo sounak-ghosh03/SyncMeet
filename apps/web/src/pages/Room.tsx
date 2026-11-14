@@ -48,7 +48,7 @@ export default function RoomPage() {
 
   const connect = useCallback(async () => {
     try {
-      const { token } = await getMeetingToken({
+      const { token, lkUrl } = await getMeetingToken({
         roomId,
         name: displayName,
         hostKey: hostKey ?? undefined,
@@ -64,7 +64,7 @@ export default function RoomPage() {
         setRoomState('error');
       });
 
-      await provider.connect(roomId, token);
+      await provider.connect(roomId, token, lkUrl);
 
       // Apply initial mute state from PreJoin
       const initialMic = joinPrefs?.micOn ?? true;

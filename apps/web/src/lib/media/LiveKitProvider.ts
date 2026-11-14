@@ -39,11 +39,10 @@ export class LiveKitProvider implements MediaProvider {
 
   // ── Connection ─────────────────────────────────────────────────────────────
 
-  async connect(_roomId: string, token: string): Promise<void> {
-    const lkUrl = import.meta.env.VITE_LK_URL as string;
-    if (!lkUrl) throw new Error('VITE_LK_URL is not set');
+  async connect(_roomId: string, token: string, serverUrl: string): Promise<void> {
+    if (!serverUrl) throw new Error('LiveKit server URL is missing. Check your backend LK_URL env var.');
 
-    await this.room.connect(lkUrl, token);
+    await this.room.connect(serverUrl, token);
     this.emitParticipants();
   }
 

@@ -33,7 +33,8 @@ export interface ParticipantInfo {
 }
 
 export interface MediaProvider {
-  connect(roomId: string, token: string): Promise<void>;
+  /** serverUrl — the LiveKit WebSocket URL (wss://...). Comes from the backend token response. */
+  connect(roomId: string, token: string, serverUrl: string): Promise<void>;
   disconnect(): Promise<void>;
 
   setMicEnabled(on: boolean): Promise<void>;

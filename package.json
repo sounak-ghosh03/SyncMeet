@@ -6,6 +6,7 @@
     "apps/web",
     "apps/server"
   ],
+  "type": "module",
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
@@ -17,5 +18,8 @@
   },
   "dependencies": {
     "install": "^0.13.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
   }
 }
