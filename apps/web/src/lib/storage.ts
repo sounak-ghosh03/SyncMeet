@@ -52,7 +52,35 @@ export function loadDisplayName(): string {
   }
 }
 
-// ── Layout preference ─────────────────────────────────────────────────────
+// ── Pending token (waiting room → room handoff) ───────────────────────────
+// Stored briefly so the Room page can use the already-issued token
+// instead of calling getMeetingToken again.
+
+const KEY_PENDING_TOKEN = (roomId: string) => `sm:pendingToken:${roomId}`;
+const KEY_PENDING_LKURL = (roomId: string) => `sm:pendingLkUrl:${roomId}`;
+
+export function savePendingToken(roomId: string, token: string, lkUrl: string): void {
+  try {
+    sessionStorage.setItem(KEY_PENDING_TOKEN(roomId), token);
+    sessionStorage.setItem(KEY_PENDING_LKURL(roomId), lkUrl);
+  } catch { /* ok */ }
+}
+
+export function loadPendingToken(roomId: string): { token: string; lkUrl: string } | null {
+  try {
+    const token = sessionStorage.getItem(KEY_PENDING_TOKEN(roomId));
+    const lkUrl = sessionStorage.getItem(KEY_PENDING_LKURL(roomId));
+    if (!token || !lkUrl) return null;
+    return { token, lkUrl };
+  } catch { return null; }
+}
+
+export function clearPendingToken(roomId: string): void {
+  try {
+    sessionStorage.removeItem(KEY_PENDING_TOKEN(roomId));
+    sessionStorage.removeItem(KEY_PENDING_LKURL(roomId));
+  } catch { /* ok */ }
+}
 
 export type LayoutMode = 'grid' | 'speaker';
 
@@ -71,3 +99,4 @@ export function loadLayout(): LayoutMode {
   }
 }
 
+// ── Layout preference ─────────────────────────────────────────────────────

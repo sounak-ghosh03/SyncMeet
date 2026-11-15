@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageShell from '@/components/PageShell';
 import Spinner from '@/components/Spinner';
-import { getMeetingInfo, getMeetingToken, type MeetingInfo } from '@/lib/api';
+import { getMeetingInfo, getMeetingToken, createJoinRequest, type MeetingInfo } from '@/lib/api';
 import { ApiError } from '@/lib/api';
 import { loadDisplayName, saveDisplayName, loadHostKey } from '@/lib/storage';
 
@@ -143,26 +143,30 @@ export default function PreJoinPage() {
     setErrorMsg('');
     saveDisplayName(trimmedName);
 
+    // Always save joinPrefs so Room/WaitingRoom pages can read the name + device prefs
+    sessionStorage.setItem(
+      `sm:joinPrefs:${roomId}`,
+      JSON.stringify({ selectedVideoId, selectedAudioId, camOn, micOn, name: trimmedName }),
+    );
+    stopPreview();
+
     try {
-      // Check if we have a host key saved for this room
       const hostKey = loadHostKey(roomId) ?? undefined;
 
+      // ── Waiting room: create a join request, go to polling page ──────────
+      if (meetingInfo?.joinPolicy === 'waiting_room' && !hostKey) {
+        const { requestId } = await createJoinRequest({ roomId, name: trimmedName });
+        navigate(`/waiting/${roomId}/${requestId}`);
+        return;
+      }
+
+      // ── Open or passcode: get token and go straight to room ───────────────
       await getMeetingToken({
         roomId,
         name: trimmedName,
         hostKey,
         passcode: passcode.trim() || undefined,
       });
-
-      // Stop preview before navigating — the Room page will start its own streams
-      stopPreview();
-
-      // Pass initial device preferences and mute state via sessionStorage
-      // so the Room page can pick them up without re-asking permissions
-      sessionStorage.setItem(
-        `sm:joinPrefs:${roomId}`,
-        JSON.stringify({ selectedVideoId, selectedAudioId, camOn, micOn, name: trimmedName }),
-      );
 
       navigate(`/room/${roomId}`);
     } catch (err) {

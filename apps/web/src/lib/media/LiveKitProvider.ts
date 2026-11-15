@@ -83,6 +83,8 @@ export class LiveKitProvider implements MediaProvider {
   on(event: 'participants', cb: (participants: ParticipantInfo[]) => void): void;
   on(event: 'chat', cb: (msg: ChatMessage) => void): void;
   on(event: 'disconnected', cb: () => void): void;
+  on(event: 'reconnecting', cb: () => void): void;
+  on(event: 'reconnected', cb: () => void): void;
   on(event: 'error', cb: (err: Error) => void): void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on(event: MediaEventType, cb: (arg?: any) => void): void {
@@ -147,6 +149,15 @@ export class LiveKitProvider implements MediaProvider {
     // Disconnection / meeting ended
     room.on(RoomEvent.Disconnected, () => {
       this.emit('disconnected');
+    });
+
+    // Reconnect lifecycle — Room.tsx shows/hides the reconnect banner
+    room.on(RoomEvent.Reconnecting, () => {
+      this.emit('reconnecting');
+    });
+
+    room.on(RoomEvent.Reconnected, () => {
+      this.emit('reconnected');
     });
 
     // Connection state errors

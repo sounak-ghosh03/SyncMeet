@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import type { ParticipantInfo } from '@/lib/media';
 import VideoTile from './VideoTile';
+import { ChevronLeftIcon, ChevronRightIcon } from './Icons';
 import type { LayoutMode } from '@/lib/storage';
 
 interface Props {
@@ -8,7 +10,7 @@ interface Props {
   hostIdentity: string | null; // the local host's identity if known
 }
 
-/** How many tiles to show per page (Phase 4 adds full pagination controls) */
+/** How many tiles to show per page */
 const PAGE_SIZE = 9;
 
 /**
@@ -22,6 +24,13 @@ const PAGE_SIZE = 9;
  * rendering change with no reconnect (section 11.3 of the plan).
  */
 export default function VideoGrid({ participants, layout, hostIdentity }: Props) {
+  const [page, setPage] = useState(0);
+
+  // Reset to page 0 when participant count drops below current page boundary
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(participants.length / PAGE_SIZE) - 1);
+    if (page > maxPage) setPage(maxPage);
+  }, [participants.length, page]);
   // Build the flat tile list: each participant gets a camera tile, plus an
   // extra screen-share tile if they are sharing.
   interface TileDescriptor {
@@ -114,7 +123,8 @@ export default function VideoGrid({ participants, layout, hostIdentity }: Props)
   // ── Grid view ─────────────────────────────────────────────────────────────
 
   // Paginate (Phase 4 will add prev/next controls; for now show first PAGE_SIZE)
-  const visibleTiles = tiles.slice(0, PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(tiles.length / PAGE_SIZE));
+  const visibleTiles = tiles.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const count = visibleTiles.length;
 
   // Responsive column count
@@ -126,9 +136,9 @@ export default function VideoGrid({ participants, layout, hostIdentity }: Props)
     : 4;
 
   return (
-    <div className="flex-1 p-2 overflow-hidden min-h-0">
+    <div className="flex-1 flex flex-col p-2 overflow-hidden min-h-0 gap-2">
       <div
-        className="w-full h-full"
+        className="flex-1 min-h-0"
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${cols}, 1fr)`,
@@ -145,13 +155,31 @@ export default function VideoGrid({ participants, layout, hostIdentity }: Props)
         ))}
       </div>
 
-      {tiles.length > PAGE_SIZE && (
-        <div
-          className="text-center text-xs mt-2"
-          style={{ color: 'var(--muted)' }}
-        >
-          Showing {PAGE_SIZE} of {tiles.length} participants
-          — full pagination coming soon
+      {/* Pagination controls — only shown when there are multiple pages */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 shrink-0 py-1">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            aria-label="Previous page"
+            className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-30"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+          >
+            <ChevronLeftIcon size={16} />
+          </button>
+          <span className="text-xs" style={{ color: 'var(--muted)' }}>
+            {page + 1} / {totalPages}
+            <span className="ml-2">({tiles.length} participants)</span>
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+            aria-label="Next page"
+            className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-30"
+            style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+          >
+            <ChevronRightIcon size={16} />
+          </button>
         </div>
       )}
     </div>

@@ -7,7 +7,14 @@ import {
   verifyHostKey,
   endMeeting,
 } from '../services/meetings.js';
-import { RoomServiceClient } from 'livekit-server-sdk';
+import {
+  createJoinRequest,
+  pollJoinRequest,
+  listPendingRequests,
+  admitJoinRequest,
+  denyJoinRequest,
+} from '../services/joinRequests.js';
+import { RoomServiceClient, TrackType } from 'livekit-server-sdk';
 import { config } from '../config.js';
 
 const router = Router();
@@ -194,11 +201,17 @@ router.post('/:roomId/mute-all', async (req, res, next) => {
       config.livekit.apiSecret,
     );
 
+    // Target only audio tracks to avoid muting screen shares or video
     const participants = await svc.listParticipants(roomId);
     await Promise.all(
-      participants.map((p) =>
-        svc.mutePublishedTrack(roomId, p.identity, p.tracks?.[0]?.sid ?? '', true),
-      ),
+      participants.flatMap((p) => {
+        const audioTracks = (p.tracks ?? []).filter(
+          (t) => t.type === TrackType.AUDIO,
+        );
+        return audioTracks.map((t) =>
+          svc.mutePublishedTrack(roomId, p.identity, t.sid, true),
+        );
+      }),
     );
 
     res.json({ mutedAll: true });
@@ -240,6 +253,117 @@ router.post('/:roomId/remove', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// ── JOIN REQUEST ROUTES (waiting room) ────────────────────────────────────
+// These routes implement section 11.4 of the implementation plan.
+
+// POST /api/meetings/:roomId/join-requests — guest creates a request
+const JoinRequestBody = z.object({
+  name: z.string().min(1, 'Name is required').max(60).trim(),
+});
+
+router.post('/:roomId/join-requests', async (req, res, next) => {
+  try {
+    const roomId = getRoomId(req.params);
+    if (!roomId) { res.status(400).json({ error: 'Invalid room ID.' }); return; }
+
+    const body = JoinRequestBody.safeParse(req.body);
+    if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+    const meeting = await getMeeting(roomId);
+    if (!meeting) { res.status(404).json({ error: 'Meeting not found.' }); return; }
+    if (meeting.endedAt) { res.status(410).json({ error: 'Meeting has ended.' }); return; }
+    if (meeting.joinPolicy !== 'waiting_room') {
+      res.status(400).json({ error: 'This meeting does not use a waiting room.' });
+      return;
+    }
+
+    const { requestId } = await createJoinRequest(roomId, body.data.name);
+    res.status(201).json({ requestId });
+  } catch (err) { next(err); }
+});
+
+// GET /api/meetings/:roomId/join-requests/:requestId — guest polls status
+router.get('/:roomId/join-requests/:requestId', async (req, res, next) => {
+  try {
+    const roomId = getRoomId(req.params);
+    const { requestId } = req.params;
+    if (!roomId || !requestId) { res.status(400).json({ error: 'Invalid params.' }); return; }
+
+    const result = await pollJoinRequest(roomId, requestId, config.livekit.url);
+
+    if (result.status === 'not_found') {
+      res.status(404).json({ error: 'Request not found.' });
+      return;
+    }
+
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// GET /api/meetings/:roomId/join-requests — host lists pending guests
+router.get('/:roomId/join-requests', async (req, res, next) => {
+  try {
+    const roomId = getRoomId(req.params);
+    if (!roomId) { res.status(400).json({ error: 'Invalid room ID.' }); return; }
+
+    const hostKey = req.headers['x-host-key'] as string | undefined;
+    if (!hostKey) { res.status(403).json({ error: 'Host key required.' }); return; }
+
+    const meeting = await getMeeting(roomId);
+    if (!meeting) { res.status(404).json({ error: 'Meeting not found.' }); return; }
+
+    const isHost = await verifyHostKey(meeting, hostKey);
+    if (!isHost) { res.status(403).json({ error: 'Invalid host key.' }); return; }
+
+    const pending = await listPendingRequests(roomId);
+    res.json({ requests: pending.map((r) => ({ requestId: r.requestId, name: r.name })) });
+  } catch (err) { next(err); }
+});
+
+// POST /api/meetings/:roomId/join-requests/:requestId/admit — host admits
+const AdmitDenyBody = z.object({ hostKey: z.string().min(1) });
+
+router.post('/:roomId/join-requests/:requestId/admit', async (req, res, next) => {
+  try {
+    const roomId = getRoomId(req.params);
+    const { requestId } = req.params;
+    if (!roomId || !requestId) { res.status(400).json({ error: 'Invalid params.' }); return; }
+
+    const body = AdmitDenyBody.safeParse(req.body);
+    if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+    const meeting = await getMeeting(roomId);
+    if (!meeting) { res.status(404).json({ error: 'Meeting not found.' }); return; }
+
+    const isHost = await verifyHostKey(meeting, body.data.hostKey);
+    if (!isHost) { res.status(403).json({ error: 'Invalid host key.' }); return; }
+
+    await admitJoinRequest(roomId, requestId);
+    res.json({ admitted: true });
+  } catch (err) { next(err); }
+});
+
+// POST /api/meetings/:roomId/join-requests/:requestId/deny — host denies
+router.post('/:roomId/join-requests/:requestId/deny', async (req, res, next) => {
+  try {
+    const roomId = getRoomId(req.params);
+    const { requestId } = req.params;
+    if (!roomId || !requestId) { res.status(400).json({ error: 'Invalid params.' }); return; }
+
+    const body = AdmitDenyBody.safeParse(req.body);
+    if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+    const meeting = await getMeeting(roomId);
+    if (!meeting) { res.status(404).json({ error: 'Meeting not found.' }); return; }
+
+    const isHost = await verifyHostKey(meeting, body.data.hostKey);
+    if (!isHost) { res.status(403).json({ error: 'Invalid host key.' }); return; }
+
+    await denyJoinRequest(roomId, requestId);
+    res.json({ denied: true });
+  } catch (err) { next(err); }
 });
 
 export default router;

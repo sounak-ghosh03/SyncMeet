@@ -3,9 +3,10 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 // ── Join request sub-document ──────────────────────────────────────────────
 
 export interface IJoinRequest {
-  requestId: string;       // random, unguessable
+  requestId: string;       // random, unguessable (nanoid 32)
   name: string;            // display name the guest entered
   status: 'pending' | 'admitted' | 'denied';
+  token: string | null;    // LiveKit token set when host admits — returned to guest via polling
   createdAt: Date;
 }
 
@@ -14,6 +15,7 @@ const JoinRequestSchema = new Schema<IJoinRequest>(
     requestId: { type: String, required: true },
     name:      { type: String, required: true, maxlength: 60 },
     status:    { type: String, enum: ['pending', 'admitted', 'denied'], default: 'pending' },
+    token:     { type: String, default: null },
     createdAt: { type: Date, default: () => new Date() },
   },
   { _id: false },

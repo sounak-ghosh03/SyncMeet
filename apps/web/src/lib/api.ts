@@ -9,10 +9,11 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
+  extraHeaders?: Record<string, string>,
 ): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
@@ -97,5 +98,83 @@ export async function endMeeting(params: {
   hostKey: string;
 }): Promise<void> {
   await request('POST', `/api/meetings/${params.roomId}/end`, { hostKey: params.hostKey });
+}
+
+export async function muteAll(params: {
+  roomId: string;
+  hostKey: string;
+}): Promise<void> {
+  await request('POST', `/api/meetings/${params.roomId}/mute-all`, { hostKey: params.hostKey });
+}
+
+export async function removeParticipant(params: {
+  roomId: string;
+  hostKey: string;
+  identity: string;
+}): Promise<void> {
+  await request('POST', `/api/meetings/${params.roomId}/remove`, {
+    hostKey: params.hostKey,
+    identity: params.identity,
+  });
+}
+
+// ── Join request (waiting room) API ───────────────────────────────────────
+
+export async function createJoinRequest(params: {
+  roomId: string;
+  name: string;
+}): Promise<{ requestId: string }> {
+  return request('POST', `/api/meetings/${params.roomId}/join-requests`, { name: params.name });
+}
+
+export type PollStatus =
+  | { status: 'pending' }
+  | { status: 'admitted'; token: string; lkUrl: string }
+  | { status: 'denied' }
+  | { status: 'expired' };
+
+export async function pollJoinRequest(params: {
+  roomId: string;
+  requestId: string;
+}): Promise<PollStatus> {
+  return request('GET', `/api/meetings/${params.roomId}/join-requests/${params.requestId}`);
+}
+
+export interface PendingGuest {
+  requestId: string;
+  name: string;
+}
+
+export async function listPendingGuests(params: {
+  roomId: string;
+  hostKey: string;
+}): Promise<PendingGuest[]> {
+  const data = await request<{ requests: PendingGuest[] }>(
+    'GET',
+    `/api/meetings/${params.roomId}/join-requests`,
+    undefined,
+    { 'x-host-key': params.hostKey },
+  );
+  return data.requests;
+}
+
+export async function admitGuest(params: {
+  roomId: string;
+  requestId: string;
+  hostKey: string;
+}): Promise<void> {
+  await request('POST', `/api/meetings/${params.roomId}/join-requests/${params.requestId}/admit`, {
+    hostKey: params.hostKey,
+  });
+}
+
+export async function denyGuest(params: {
+  roomId: string;
+  requestId: string;
+  hostKey: string;
+}): Promise<void> {
+  await request('POST', `/api/meetings/${params.roomId}/join-requests/${params.requestId}/deny`, {
+    hostKey: params.hostKey,
+  });
 }
 

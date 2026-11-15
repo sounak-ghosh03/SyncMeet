@@ -9,6 +9,7 @@ import {
   PhoneOffIcon,
   GridIcon,
   SpeakerViewIcon,
+  UsersIcon,
 } from "./Icons";
 import type { LayoutMode } from "@/lib/storage";
 
@@ -17,15 +18,18 @@ interface Props {
   camOn: boolean;
   isScreenSharing: boolean;
   isChatOpen: boolean;
+  isParticipantsOpen: boolean;
   unreadCount: number;
+  waitingCount: number;    // pending waiting-room guests
   layout: LayoutMode;
   isHost: boolean;
-  screenshareBlocked: boolean; // true when another participant is already sharing
+  screenshareBlocked: boolean;
 
   onToggleMic: () => void;
   onToggleCam: () => void;
   onToggleScreenShare: () => void;
   onToggleChat: () => void;
+  onToggleParticipants: () => void;
   onToggleLayout: () => void;
   onLeave: () => void;
   onEndMeeting: () => void;
@@ -33,14 +37,16 @@ interface Props {
 
 /**
  * Bottom controls bar for the meeting room.
- * Keyboard shortcuts: M = mic, V = video, S = screen share, C = chat
+ * Keyboard shortcuts: M = mic, V = video, S = screen share, C = chat, P = participants
  */
 export default function ControlsBar({
   micOn,
   camOn,
   isScreenSharing,
   isChatOpen,
+  isParticipantsOpen,
   unreadCount,
+  waitingCount,
   layout,
   isHost,
   screenshareBlocked,
@@ -48,6 +54,7 @@ export default function ControlsBar({
   onToggleCam,
   onToggleScreenShare,
   onToggleChat,
+  onToggleParticipants,
   onToggleLayout,
   onLeave,
   onEndMeeting,
@@ -151,6 +158,27 @@ export default function ControlsBar({
               style={{ background: "var(--accent)", color: "#fff" }}
             >
               {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </div>
+
+        {/* Participants toggle */}
+        <div className="relative">
+          <ControlBtn
+            label={isParticipantsOpen ? "Close people (P)" : "People (P)"}
+            onClick={onToggleParticipants}
+            active={!isParticipantsOpen}
+            accent={isParticipantsOpen}
+            title="Toggle participant list (P)"
+          >
+            <UsersIcon size={20} />
+          </ControlBtn>
+          {waitingCount > 0 && !isParticipantsOpen && (
+            <span
+              className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full text-[10px] font-bold flex items-center justify-center px-1"
+              style={{ background: "var(--danger)", color: "#fff" }}
+            >
+              {waitingCount > 9 ? "9+" : waitingCount}
             </span>
           )}
         </div>

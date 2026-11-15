@@ -11,6 +11,8 @@ export type MediaEventType =
   | 'chat'
   | 'tracks'
   | 'disconnected'
+  | 'reconnecting'
+  | 'reconnected'
   | 'error';
 
 export interface ChatMessage {
@@ -53,6 +55,8 @@ export interface MediaProvider {
   on(event: 'participants', cb: (participants: ParticipantInfo[]) => void): void;
   on(event: 'chat', cb: (msg: ChatMessage) => void): void;
   on(event: 'disconnected', cb: () => void): void;
+  on(event: 'reconnecting', cb: () => void): void;
+  on(event: 'reconnected', cb: () => void): void;
   on(event: 'error', cb: (err: Error) => void): void;
   off(event: MediaEventType, cb: (...args: unknown[]) => void): void;
 }
